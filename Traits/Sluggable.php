@@ -4,7 +4,8 @@ namespace Litepie\Database\Traits;
 
 use Exception;
 use  Illuminate\Support\Str;
-trait Slugger
+
+trait Sluggable
 {
     /**
      * @var array List of attributes to automatically generate unique URL names (slugs) for.
