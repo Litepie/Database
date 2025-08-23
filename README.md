@@ -26,6 +26,12 @@ Install the package via Composer:
 composer require litepie/database
 ```
 
+## Requirements
+
+- PHP 8.2, 8.3, or 8.4
+- Laravel 10.x, 11.x, or 12.x
+- MySQL 5.7+, PostgreSQL 10+, or SQLite 3.8+
+
 ### Laravel Auto-Discovery
 
 The package will automatically register its service provider and facades through Laravel's package auto-discovery feature.

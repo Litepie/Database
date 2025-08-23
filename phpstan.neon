@@ -1,0 +1,12 @@
+parameters:
+    level: 9
+    paths:
+        - src
+    tmpDir: build/phpstan
+    checkOctaneCompatibility: true
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
+    reportUnmatchedIgnoredErrors: false
+    
+includes:
+    - ./vendor/nunomaduro/larastan/extension.neon

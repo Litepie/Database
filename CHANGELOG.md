@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2025-08-23
+
+### Added
+- Laravel 12.x compatibility
+- PHP 8.4 support
+- Enhanced GitHub Actions workflows with matrix testing
+- Extended testing matrix to include all supported Laravel and PHP versions
+
+### Changed
+- Updated dependency constraints to support Laravel 12.x
+- Updated PHPUnit to support v11.x
+- Updated Orchestra Testbench to support v10.x for Laravel 12
+
 ## [2.0.0] - 2024-01-XX
 
 ### Added
