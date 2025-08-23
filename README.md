@@ -1,0 +1,534 @@
+# Litepie Database Package
+
+[![Latest Stable Version](https://poser.pugx.org/litepie/database/v/stable)](https://packagist.org/packages/litepie/database)
+[![Total Downloads](https://poser.pugx.org/litepie/database/downloads)](https://packagist.org/packages/litepie/database)
+[![License](https://poser.pugx.org/litepie/database/license)](https://packagist.org/packages/litepie/database)
+
+An advanced Laravel database package that provides enhanced Eloquent traits, scopes, casts, and utilities for modern Laravel applications. This package extends Laravel's Eloquent ORM with powerful features for archiving, searching, caching, slugs, and more.
+
+## Features
+
+- 🗃️ **Advanced Archivable**: Soft archiving with reasons, user tracking, and advanced queries
+- 🔍 **Powerful Search**: Multiple search strategies including full-text, fuzzy, weighted, and boolean search
+- ⚡ **Intelligent Caching**: Smart caching with tags, invalidation, and warm-up strategies
+- 🔗 **Enhanced Slugs**: Advanced slug generation with multiple strategies and configurations
+- 💰 **Money Handling**: Robust money casting with multi-currency support
+- 📊 **JSON Enhancement**: Advanced JSON casting with schema validation
+- 🔧 **Custom Macros**: Dynamic model macro system for extending Eloquent
+- 📋 **Bulk Operations**: Efficient bulk operations for large datasets
+- 🎯 **Smart Scopes**: Advanced query scopes for complex filtering
+
+## Installation
+
+Install the package via Composer:
+
+```bash
+composer require litepie/database
+```
+
+### Laravel Auto-Discovery
+
+The package will automatically register its service provider and facades through Laravel's package auto-discovery feature.
+
+### Manual Registration (Optional)
+
+If you need to manually register the service provider, add it to your `config/app.php`:
+
+```php
+'providers' => [
+    // ...
+    Litepie\Database\DatabaseServiceProvider::class,
+],
+
+'aliases' => [
+    // ...
+    'ModelMacro' => Litepie\Database\Facades\ModelMacro::class,
+],
+```
+
+### Publishing Configuration
+
+Optionally, publish the configuration file:
+
+```bash
+php artisan vendor:publish --tag=litepie-database-config
+```
+
+## Usage
+
+### 1. Archivable Trait
+
+The enhanced Archivable trait provides soft archiving functionality with additional features like reason tracking and user auditing.
+
+#### Basic Usage
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Litepie\Database\Traits\Archivable;
+
+class Post extends Model
+{
+    use Archivable;
+
+    // Optional: Define custom column names
+    const ARCHIVED_AT = 'archived_at';
+    const ARCHIVED_BY = 'archived_by'; 
+    const ARCHIVED_REASON = 'archived_reason';
+}
+```
+
+#### Migration
+
+Add archive columns to your table:
+
+```php
+Schema::table('posts', function (Blueprint $table) {
+    $table->archivedAt(); // Adds archived_at timestamp
+    $table->string('archived_by')->nullable();
+    $table->text('archived_reason')->nullable();
+});
+```
+
+#### Examples
+
+```php
+// Archive a post with reason and user
+$post = Post::find(1);
+$post->archive('Content outdated', auth()->user());
+
+// Archive multiple posts
+Post::archiveByIds([1, 2, 3], 'Bulk cleanup', auth()->user());
+
+// Query archived posts
+$archivedPosts = Post::onlyArchived()->get();
+$recentlyArchived = Post::recentlyArchived(30)->get(); // Last 30 days
+
+// Restore from archive
+$post->unArchive();
+
+// Check if archived
+if ($post->isArchived()) {
+    echo "Post was archived on: " . $post->archived_at;
+    echo "Reason: " . $post->getArchiveReason();
+    echo "By: " . $post->getArchivedBy();
+}
+```
+
+### 2. Advanced Searchable Trait
+
+Powerful search capabilities with multiple strategies.
+
+#### Basic Setup
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Litepie\Database\Traits\Searchable;
+
+class Article extends Model
+{
+    use Searchable;
+
+    protected array $searchable = ['title', 'content', 'tags'];
+    protected array $fullTextSearchable = ['title', 'content'];
+    protected array $searchWeights = [
+        'title' => 10,
+        'content' => 5,
+        'tags' => 3,
+    ];
+}
+```
+
+#### Search Examples
+
+```php
+// Basic search
+$articles = Article::search('Laravel framework')->get();
+
+// Advanced search with operators
+$articles = Article::advancedSearch('Laravel AND framework OR PHP')->get();
+
+// Full-text search (MySQL FULLTEXT)
+$articles = Article::fullTextSearch('Laravel framework')->get();
+
+// Weighted search with relevance scoring
+$articles = Article::weightedSearch('Laravel')
+    ->orderByDesc('search_relevance')
+    ->get();
+
+// Fuzzy search (with Levenshtein distance)
+$articles = Article::fuzzySearch('Laravle', threshold: 2)->get(); // Finds "Laravel"
+
+// Boolean search
+$articles = Article::booleanSearch('+Laravel -CodeIgniter')->get();
+
+// Search in relationships
+class Article extends Model
+{
+    use Searchable;
+    
+    protected array $searchable = ['title', 'author.name', 'category.name'];
+}
+
+$articles = Article::search('John Doe')->get(); // Searches in author name
+```
+
+### 3. Intelligent Caching Trait
+
+Smart caching with automatic invalidation and warm-up strategies.
+
+#### Setup
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Litepie\Database\Traits\Cacheable;
+
+class Product extends Model
+{
+    use Cacheable;
+
+    protected int $defaultCacheTtl = 120; // 2 hours
+    protected array $cacheTags = ['products', 'catalog'];
+    protected string $cachePrefix = 'product';
+}
+```
+
+#### Caching Examples
+
+```php
+// Cache query results for 60 minutes
+$products = Product::where('active', true)
+    ->cacheFor(60)
+    ->get();
+
+// Cache with custom key
+$featuredProducts = Product::where('featured', true)
+    ->cacheFor(120, 'featured-products')
+    ->get();
+
+// Cache with tags for easy invalidation
+$products = Product::where('category_id', 1)
+    ->cacheWithTags(['category-1'], 60)
+    ->get();
+
+// Cache by ID
+$product = Product::cacheById(123, 60);
+
+// Cache forever (until manually cleared)
+$categories = Category::cacheForever('all-categories');
+
+// Smart cache with dependencies
+$products = Product::with('category')
+    ->smartCache(60, ['categories'])
+    ->get();
+
+// Cache paginated results
+$products = Product::cachePaginate(15, 30);
+
+// Clear cache
+Product::find(1)->clearInstanceCache();
+Product::clearModelCache(); // Clear all product cache
+
+// Warm up cache
+Product::warmUpCache([
+    ['query' => Product::featured(), 'key' => 'featured', 'ttl' => 60],
+    ['query' => Product::popular(), 'key' => 'popular', 'ttl' => 120],
+]);
+```
+
+### 4. Enhanced Sluggable Trait
+
+Advanced slug generation with multiple strategies and configurations.
+
+#### Setup
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Litepie\Database\Traits\Sluggable;
+
+class Post extends Model
+{
+    use Sluggable;
+
+    protected array $slugs = [
+        'slug' => 'title',
+        'meta_slug' => ['title', 'category.name']
+    ];
+
+    protected array $slugConfig = [
+        'separator' => '-',
+        'language' => 'en',
+        'max_length' => 255,
+        'reserved_words' => ['admin', 'api', 'blog'],
+        'unique' => true,
+        'on_update' => false,
+        'ascii_only' => true,
+    ];
+}
+```
+
+#### Slug Examples
+
+```php
+// Automatic slug generation on create
+$post = Post::create([
+    'title' => 'My Amazing Blog Post!',
+    // slug will be automatically set to 'my-amazing-blog-post'
+]);
+
+// Find by slug
+$post = Post::findBySlug('my-amazing-blog-post');
+$post = Post::findBySlugOrFail('my-amazing-blog-post');
+
+// Query by slug
+$posts = Post::whereSlug('my-amazing-blog-post')->get();
+
+// Custom route model binding
+public function getRouteKeyName()
+{
+    return 'slug';
+}
+
+// Regenerate slugs
+$post->regenerateSlugs();
+
+// Custom slug configuration
+$post->setSlugConfig([
+    'separator' => '_',
+    'max_length' => 100,
+    'on_update' => true,
+]);
+
+// Get slug variations for debugging
+$variations = $post->getSlugVariations('slug', 'my-post', 5);
+// Returns: ['my-post', 'my-post-2', 'my-post-3', 'my-post-4', 'my-post-5']
+```
+
+### 5. Enhanced JSON and Money Casts
+
+#### JSON Cast with Schema Validation
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Litepie\Database\Casts\JsonCast;
+
+class User extends Model
+{
+    protected $casts = [
+        'preferences' => JsonCast::class,
+        'metadata' => JsonCast::withDefault(['theme' => 'light']),
+        'settings' => JsonCast::withSchema([
+            'theme' => ['type' => 'string', 'required' => true],
+            'notifications' => ['type' => 'boolean', 'required' => false],
+        ]),
+    ];
+}
+
+// Usage
+$user = new User();
+$user->preferences = ['language' => 'en', 'timezone' => 'UTC'];
+$user->save();
+
+// Access
+echo $user->preferences['language']; // 'en'
+```
+
+#### Money Cast with Currency Support
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Litepie\Database\Casts\MoneyCast;
+
+class Order extends Model
+{
+    protected $casts = [
+        'total' => MoneyCast::class, // Default USD
+        'tax' => MoneyCast::currency('USD'),
+        'shipping' => MoneyCast::asDecimal('EUR', 2),
+        'crypto_amount' => MoneyCast::crypto('BTC'),
+    ];
+}
+
+// Usage
+$order = new Order();
+$order->total = ['amount' => 99.99, 'currency' => 'USD'];
+// or
+$order->total = 99.99; // Assumes USD
+
+// Access
+echo $order->total['amount']; // 99.99
+echo $order->total['formatted']; // $99.99
+echo $order->total['cents']; // 9999
+echo $order->total['currency']; // USD
+```
+
+### 6. Model Macros
+
+Extend Eloquent models with custom macros.
+
+```php
+use Litepie\Database\Facades\ModelMacro;
+
+// Add a macro to specific models
+ModelMacro::addMacro([User::class, Post::class], 'popular', function () {
+    return $this->where('views', '>', 1000);
+});
+
+// Add a global macro (applies to all models)
+ModelMacro::addGlobalMacro('recent', function (int $days = 30) {
+    return $this->where('created_at', '>=', now()->subDays($days));
+});
+
+// Usage
+$popularUsers = User::popular()->get();
+$recentPosts = Post::recent(7)->get();
+
+// Check if model has macro
+if (ModelMacro::modelHasMacro(User::class, 'popular')) {
+    // Macro exists
+}
+
+// Get statistics
+$stats = ModelMacro::getStatistics();
+```
+
+### 7. Advanced Query Features
+
+#### Filtering and Searching
+
+```php
+// Advanced filtering
+$users = User::filter([
+    'status' => 'active',
+    'age:>' => 18,
+    'country' => ['US', 'CA', 'UK'],
+    'created_at:between' => ['2023-01-01', '2023-12-31'],
+])->get();
+
+// Batch processing
+User::where('active', false)->batch(100, function ($users) {
+    foreach ($users as $user) {
+        $user->delete();
+    }
+});
+
+// Pagination with metadata
+$users = User::paginateWithMeta(15);
+
+// Cache with tags
+$activeUsers = User::where('active', true)
+    ->cacheWithTags(['users', 'active'], 60)
+    ->get();
+```
+
+#### Migration Macros
+
+The package provides helpful migration macros:
+
+```php
+Schema::create('posts', function (Blueprint $table) {
+    $table->id();
+    $table->string('title');
+    $table->slug(); // Adds slug column with index
+    $table->status(); // Adds status enum column
+    $table->auditColumns(); // Adds created_at, updated_at, deleted_at, archived_at, etc.
+    $table->seoColumns(); // Adds meta_title, meta_description, etc.
+    $table->position(); // Adds position column for ordering
+    $table->uuidPrimary(); // UUID primary key
+    $table->jsonWithIndex('metadata', ['type', 'category']); // JSON with virtual indexes
+});
+```
+
+## Configuration
+
+The package comes with sensible defaults, but you can customize behavior by publishing and modifying the configuration file:
+
+```php
+// config/litepie-database.php
+return [
+    'cache' => [
+        'default_ttl' => 60,
+        'tags_enabled' => true,
+        'warm_up_on_boot' => false,
+    ],
+    
+    'archivable' => [
+        'default_reason' => 'Archived by system',
+        'track_user' => true,
+    ],
+    
+    'sluggable' => [
+        'separator' => '-',
+        'max_length' => 255,
+        'reserved_words' => ['admin', 'api', 'www'],
+    ],
+    
+    'searchable' => [
+        'default_strategy' => 'basic',
+        'enable_full_text' => true,
+        'fuzzy_threshold' => 2,
+    ],
+];
+```
+
+## Testing
+
+Run the test suite:
+
+```bash
+composer test
+```
+
+## Contributing
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to this project.
+
+## Security
+
+If you discover any security-related issues, please email security@renfos.com instead of using the issue tracker.
+
+## Credits
+
+- [Renfos Technologies](https://renfos.com)
+- [All Contributors](../../contributors)
+
+## License
+
+The MIT License (MIT). Please see [License File](LICENSE) for more information.
+
+## Changelog
+
+Please see [CHANGELOG.md](CHANGELOG.md) for more information on what has changed recently.
+
+## Support
+
+- 📧 Email: info@renfos.com
+- 🐛 Issues: [GitHub Issues](https://github.com/litepie/database/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/litepie/database/discussions)
+
+---
+
+Made with ❤️ by [Renfos Technologies](https://renfos.com)

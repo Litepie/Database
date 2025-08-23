@@ -1,0 +1,77 @@
+name: 💬 Question
+description: Ask a question about the package
+title: "[Question]: "
+labels: ["question", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your question! Please check the documentation first:
+        - [README](https://github.com/litepie/database/blob/main/README.md)
+        - [Usage Examples](https://github.com/litepie/database/blob/main/docs/USAGE_EXAMPLES.md)
+        - [Contributing Guide](https://github.com/litepie/database/blob/main/CONTRIBUTING.md)
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide any relevant context about what you're trying to achieve
+      placeholder: |
+        I'm trying to...
+        I expected...
+        But instead...
+
+  - type: textarea
+    id: code-sample
+    attributes:
+      label: Code Sample (if applicable)
+      description: If your question involves code, please provide a sample
+      render: php
+      placeholder: |
+        <?php
+        // Your code here
+
+  - type: dropdown
+    id: trait-category
+    attributes:
+      label: Which trait/component is your question about?
+      options:
+        - Archivable
+        - Cacheable
+        - Searchable
+        - Sluggable
+        - Sortable
+        - Casts (JSON/Money)
+        - Model Macros
+        - Migration Macros
+        - Installation/Setup
+        - Performance
+        - General Usage
+        - Other
+
+  - type: textarea
+    id: research
+    attributes:
+      label: What have you tried?
+      description: What research have you done? What have you tried so far?
+      placeholder: |
+        - I searched the documentation
+        - I tried...
+        - I looked at...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
