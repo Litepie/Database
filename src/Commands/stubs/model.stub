@@ -1,0 +1,80 @@
+<?php
+
+namespace DummyNamespace;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Litepie\Database\Traits\Archivable;
+use Litepie\Database\Traits\Cacheable;
+use Litepie\Database\Traits\Searchable;
+use Litepie\Database\Traits\Sluggable;
+use Litepie\Database\Traits\Sortable;
+
+class DummyClass extends Model
+{
+    use SoftDeletes, Archivable, Cacheable, Searchable, Sluggable, Sortable;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        // Add your fillable attributes here
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        // Add attributes to hide from JSON
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        // Add your attribute casts here
+    ];
+
+    /**
+     * The attributes that are searchable.
+     *
+     * @var array<int, string>
+     */
+    protected $searchable = [
+        // Add searchable attributes here
+    ];
+
+    /**
+     * The column to use for slug generation.
+     *
+     * @var string
+     */
+    protected $slugFrom = 'name';
+
+    /**
+     * The column to store the slug.
+     *
+     * @var string
+     */
+    protected $slugTo = 'slug';
+
+    /**
+     * The default sort column.
+     *
+     * @var string
+     */
+    protected $sortColumn = 'created_at';
+
+    /**
+     * The default sort direction.
+     *
+     * @var string
+     */
+    protected $sortDirection = 'desc';
+}
