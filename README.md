@@ -12,6 +12,7 @@ An advanced Laravel database package that provides enhanced Eloquent traits, sco
 - 🔍 **Powerful Search**: Multiple search strategies including full-text, fuzzy, weighted, and boolean search
 - ⚡ **Intelligent Caching**: Smart caching with tags, invalidation, and warm-up strategies
 - 🔗 **Enhanced Slugs**: Advanced slug generation with multiple strategies and configurations
+- 📄 **Paginatable**: Cursor, seek, window, and cached pagination for large datasets
 - 💰 **Money Handling**: Robust money casting with multi-currency support
 - 📊 **JSON Enhancement**: Advanced JSON casting with schema validation
 - 🔧 **Custom Macros**: Dynamic model macro system for extending Eloquent
@@ -325,7 +326,128 @@ $variations = $post->getSlugVariations('slug', 'my-post', 5);
 // Returns: ['my-post', 'my-post-2', 'my-post-3', 'my-post-4', 'my-post-5']
 ```
 
-### 5. Enhanced JSON and Money Casts
+### 5. Paginatable Trait
+
+Advanced pagination methods optimized for large datasets.
+
+#### Setup
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Litepie\Database\Traits\Paginatable;
+
+class Product extends Model
+{
+    use Paginatable;
+
+    // Optional: Configure pagination behavior
+    protected array $paginatableConfig = [
+        'cache_ttl' => 300,
+        'use_approximate_count' => true,
+        'approximate_count_threshold' => 1000000,
+        'cursor_pagination_default' => false,
+    ];
+}
+```
+
+#### Pagination Examples
+
+```php
+// Cursor pagination - much faster for large datasets
+$products = Product::where('active', true)
+    ->cursorPaginate(50);
+
+// Fast pagination - no total count (LIMIT + 1)
+$products = Product::where('active', true)
+    ->fastPaginate(20);
+
+// Seek pagination - perfect for real-time feeds
+$articles = Article::seekPaginate(
+    limit: 20,
+    lastId: 100,
+    direction: 'next',
+    orderColumn: 'created_at'
+);
+
+// Optimized pagination - uses approximate count for large tables
+$orders = Order::where('status', 'completed')
+    ->optimizedPaginate(50);
+
+// Cached pagination - cache total count for expensive queries
+$products = Product::with(['category', 'brand'])
+    ->cachedPaginate(perPage: 20, cacheTtl: 300);
+
+// Window pagination - fast even for deep pagination (page 1000+)
+$logs = LogEntry::windowPaginate(perPage: 50, page: 1000);
+
+// Parallel pagination - for extremely large datasets
+$logs = LogEntry::where('level', 'error')
+    ->parallelPaginate(perPage: 100, parallelQueries: 4);
+
+// Get estimated count (much faster than COUNT(*) on large tables)
+$estimatedCount = Product::where('active', true)->estimatedCount();
+
+// Performance comparison report
+$report = Product::paginationPerformanceReport(perPage: 20, page: 1);
+/*
+Returns:
+[
+    'total_time' => 0.245,
+    'table' => 'products',
+    'estimated_rows' => 1500000,
+    'methods' => [
+        'standard' => ['time' => 0.120, 'memory' => 4194304, 'count' => 1500000],
+        'fast' => ['time' => 0.045, 'memory' => 2097152, 'count' => 20],
+        'cursor' => ['time' => 0.038, 'memory' => 2097152, 'count' => 20],
+    ],
+    'recommendation' => 'For 1500000 rows: Use fast pagination or cursor pagination'
+]
+*/
+```
+
+#### When to Use Each Method
+
+**Cursor Pagination** (`cursorPaginate`):
+- ✅ Large datasets (> 100K rows)
+- ✅ Infinite scroll
+- ✅ Real-time data
+- ❌ Need page numbers
+
+**Fast Pagination** (`fastPaginate`):
+- ✅ Don't need total count
+- ✅ "Load More" button
+- ✅ Better performance than standard
+- ❌ Need page numbers
+
+**Seek Pagination** (`seekPaginate`):
+- ✅ Real-time feeds (Twitter, Facebook style)
+- ✅ Activity streams
+- ✅ Best performance
+- ❌ Need traditional pagination
+
+**Optimized Pagination** (`optimizedPaginate`):
+- ✅ Very large tables (> 1M rows)
+- ✅ Need total count
+- ✅ Uses approximate count
+- ❌ Need exact count
+
+**Cached Pagination** (`cachedPaginate`):
+- ✅ Expensive count queries
+- ✅ Heavy joins/aggregations
+- ✅ Caches total count
+- ✅ Any dataset size
+
+**Window Pagination** (`windowPaginate`):
+- ✅ Deep pagination (page 1000+)
+- ✅ Large datasets
+- ✅ Better than OFFSET
+- ⚠️ Database-specific (MySQL/PostgreSQL)
+
+### 6. Enhanced JSON and Money Casts
 
 #### JSON Cast with Schema Validation
 
@@ -391,7 +513,7 @@ echo $order->total['cents']; // 9999
 echo $order->total['currency']; // USD
 ```
 
-### 6. Model Macros
+### 7. Model Macros
 
 Extend Eloquent models with custom macros.
 
@@ -421,7 +543,7 @@ if (ModelMacro::modelHasMacro(User::class, 'popular')) {
 $stats = ModelMacro::getStatistics();
 ```
 
-### 7. Advanced Query Features
+### 8. Advanced Query Features
 
 #### Filtering and Searching
 

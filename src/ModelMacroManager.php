@@ -66,19 +66,131 @@ class ModelMacroManager
             return $this->whereRaw("MATCH({$columnsString}) AGAINST(? IN NATURAL LANGUAGE MODE)", [$term]);
         });
 
-        // Advanced filtering macro
+        // Advanced filtering macro with extended operators
         Builder::macro('filter', function (array $filters) {
             foreach ($filters as $field => $value) {
                 if (is_null($value) || $value === '') {
                     continue;
                 }
 
-                if (is_array($value)) {
-                    $this->whereIn($field, $value);
-                } elseif (str_contains($field, ':')) {
+                // Parse field and operator
+                if (str_contains($field, ':')) {
                     [$field, $operator] = explode(':', $field, 2);
-                    $this->where($field, $operator, $value);
+                    $operator = strtolower($operator);
+
+                    // Handle different operators
+                    switch ($operator) {
+                        case 'in':
+                            $this->whereIn($field, is_array($value) ? $value : [$value]);
+                            break;
+
+                        case 'not_in':
+                        case 'notin':
+                        case 'not in':
+                            $this->whereNotIn($field, is_array($value) ? $value : [$value]);
+                            break;
+
+                        case 'between':
+                            if (is_array($value) && count($value) === 2) {
+                                $this->whereBetween($field, $value);
+                            }
+                            break;
+
+                        case 'not_between':
+                        case 'notbetween':
+                        case 'not between':
+                            if (is_array($value) && count($value) === 2) {
+                                $this->whereNotBetween($field, $value);
+                            }
+                            break;
+
+                        case 'like':
+                            $this->where($field, 'LIKE', $value);
+                            break;
+
+                        case 'not_like':
+                        case 'notlike':
+                        case 'not like':
+                            $this->where($field, 'NOT LIKE', $value);
+                            break;
+
+                        case 'starts_with':
+                        case 'startswith':
+                        case 'starts':
+                            $this->where($field, 'LIKE', $value . '%');
+                            break;
+
+                        case 'ends_with':
+                        case 'endswith':
+                        case 'ends':
+                            $this->where($field, 'LIKE', '%' . $value);
+                            break;
+
+                        case 'contains':
+                            $this->where($field, 'LIKE', '%' . $value . '%');
+                            break;
+
+                        case 'not_contains':
+                        case 'notcontains':
+                        case 'doesnt_contain':
+                            $this->where($field, 'NOT LIKE', '%' . $value . '%');
+                            break;
+
+                        case 'is_null':
+                        case 'isnull':
+                        case 'null':
+                            $this->whereNull($field);
+                            break;
+
+                        case 'is_not_null':
+                        case 'isnotnull':
+                        case 'not_null':
+                        case 'notnull':
+                            $this->whereNotNull($field);
+                            break;
+
+                        case '!=':
+                        case '<>':
+                        case 'not':
+                        case 'ne':
+                            $this->where($field, '!=', $value);
+                            break;
+
+                        case '=':
+                        case 'eq':
+                            $this->where($field, '=', $value);
+                            break;
+
+                        case '>':
+                        case 'gt':
+                            $this->where($field, '>', $value);
+                            break;
+
+                        case '>=':
+                        case 'gte':
+                            $this->where($field, '>=', $value);
+                            break;
+
+                        case '<':
+                        case 'lt':
+                            $this->where($field, '<', $value);
+                            break;
+
+                        case '<=':
+                        case 'lte':
+                            $this->where($field, '<=', $value);
+                            break;
+
+                        default:
+                            // Unknown operator, treat as regular comparison
+                            $this->where($field, $operator, $value);
+                            break;
+                    }
+                } elseif (is_array($value)) {
+                    // Array value without operator defaults to IN
+                    $this->whereIn($field, $value);
                 } else {
+                    // No operator, exact match
                     $this->where($field, $value);
                 }
             }
