@@ -199,6 +199,242 @@ trait Exportable
     }
 
     /**
+     * Preview import data before actual import.
+     *
+     * @param string $filePath Path to import file
+     * @param string $format File format (csv, json, excel)
+     * @param array $mapping Column mapping
+     * @param int $previewRows Number of rows to preview
+     * @return array Preview data with statistics
+     */
+    public static function previewImport(string $filePath, string $format = 'csv', array $mapping = [], int $previewRows = 10): array
+    {
+        if (!file_exists($filePath)) {
+            throw new \InvalidArgumentException("File not found: {$filePath}");
+        }
+
+        $preview = [
+            'file_info' => [
+                'name' => basename($filePath),
+                'size' => static::formatBytes(filesize($filePath)),
+                'format' => $format,
+            ],
+            'headers' => [],
+            'sample_data' => [],
+            'mapped_preview' => [],
+            'statistics' => [
+                'total_rows' => 0,
+                'preview_rows' => 0,
+                'columns_count' => 0,
+            ],
+            'validation' => [
+                'errors' => [],
+                'warnings' => [],
+            ],
+        ];
+
+        switch ($format) {
+            case 'csv':
+            case 'excel':
+                $preview = static::previewCsvImport($filePath, $mapping, $previewRows, $preview);
+                break;
+            case 'json':
+                $preview = static::previewJsonImport($filePath, $mapping, $previewRows, $preview);
+                break;
+            default:
+                throw new \InvalidArgumentException("Unsupported format: {$format}");
+        }
+
+        return $preview;
+    }
+
+    /**
+     * Preview CSV import.
+     *
+     * @param string $filePath File path
+     * @param array $mapping Column mapping
+     * @param int $previewRows Number of rows to preview
+     * @param array $preview Preview array
+     * @return array
+     */
+    protected static function previewCsvImport(string $filePath, array $mapping, int $previewRows, array $preview): array
+    {
+        $handle = fopen($filePath, 'r');
+        
+        // Get headers
+        $headers = fgetcsv($handle);
+        $preview['headers'] = $headers;
+        $preview['statistics']['columns_count'] = count($headers);
+
+        // Get sample rows
+        $rowCount = 0;
+        $sampleCount = 0;
+        
+        while (($row = fgetcsv($handle)) !== false && $sampleCount < $previewRows) {
+            $rowCount++;
+            
+            // Original data
+            $originalData = array_combine($headers, $row);
+            
+            // Mapped data
+            $mappedData = static::mapImportData($originalData, $mapping);
+            
+            $preview['sample_data'][] = $originalData;
+            $preview['mapped_preview'][] = $mappedData;
+            
+            $sampleCount++;
+        }
+        
+        // Count remaining rows
+        while (fgetcsv($handle) !== false) {
+            $rowCount++;
+        }
+        
+        fclose($handle);
+        
+        $preview['statistics']['total_rows'] = $rowCount;
+        $preview['statistics']['preview_rows'] = $sampleCount;
+        
+        // Validate mapping
+        $preview['validation'] = static::validateImportMapping($headers, $mapping, $preview['mapped_preview']);
+        
+        return $preview;
+    }
+
+    /**
+     * Preview JSON import.
+     *
+     * @param string $filePath File path
+     * @param array $mapping Column mapping
+     * @param int $previewRows Number of rows to preview
+     * @param array $preview Preview array
+     * @return array
+     */
+    protected static function previewJsonImport(string $filePath, array $mapping, int $previewRows, array $preview): array
+    {
+        $content = file_get_contents($filePath);
+        $data = json_decode($content, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $preview['validation']['errors'][] = 'Invalid JSON file: ' . json_last_error_msg();
+            return $preview;
+        }
+        
+        if (empty($data)) {
+            $preview['validation']['warnings'][] = 'File contains no data';
+            return $preview;
+        }
+        
+        // Get headers from first record
+        $preview['headers'] = array_keys($data[0]);
+        $preview['statistics']['columns_count'] = count($preview['headers']);
+        $preview['statistics']['total_rows'] = count($data);
+        
+        // Get sample data
+        $sample = array_slice($data, 0, $previewRows);
+        $preview['statistics']['preview_rows'] = count($sample);
+        
+        foreach ($sample as $item) {
+            $preview['sample_data'][] = $item;
+            $preview['mapped_preview'][] = static::mapImportData($item, $mapping);
+        }
+        
+        // Validate mapping
+        $preview['validation'] = static::validateImportMapping($preview['headers'], $mapping, $preview['mapped_preview']);
+        
+        return $preview;
+    }
+
+    /**
+     * Validate import mapping and data.
+     *
+     * @param array $headers File headers
+     * @param array $mapping Column mapping
+     * @param array $mappedData Mapped preview data
+     * @return array Validation results
+     */
+    protected static function validateImportMapping(array $headers, array $mapping, array $mappedData): array
+    {
+        $validation = [
+            'errors' => [],
+            'warnings' => [],
+            'mapping_status' => 'valid',
+        ];
+
+        // Check if mapping is provided
+        if (empty($mapping)) {
+            $validation['warnings'][] = 'No column mapping provided. Using original column names.';
+        }
+
+        // Check for unmapped columns
+        $mappedColumns = array_keys($mapping);
+        $unmappedColumns = array_diff($headers, $mappedColumns);
+        
+        if (!empty($unmappedColumns) && !empty($mapping)) {
+            $validation['warnings'][] = 'Unmapped columns: ' . implode(', ', $unmappedColumns);
+        }
+
+        // Check for mapping to non-existent source columns
+        foreach ($mapping as $sourceColumn => $targetColumn) {
+            if (!in_array($sourceColumn, $headers)) {
+                $validation['errors'][] = "Mapping references non-existent column: {$sourceColumn}";
+                $validation['mapping_status'] = 'invalid';
+            }
+        }
+
+        // Check for required model fields
+        $model = new static();
+        if (method_exists($model, 'getFillable')) {
+            $fillable = $model->getFillable();
+            $rules = method_exists($model, 'rules') ? $model->rules() : [];
+            
+            // Check required fields
+            foreach ($rules as $field => $rule) {
+                $ruleArray = is_string($rule) ? explode('|', $rule) : $rule;
+                
+                if (in_array('required', $ruleArray)) {
+                    $hasMappingForField = false;
+                    
+                    // Check if field is in mapped data
+                    foreach ($mappedData as $row) {
+                        if (isset($row[$field])) {
+                            $hasMappingForField = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!$hasMappingForField && !in_array($field, $headers)) {
+                        $validation['warnings'][] = "Required field '{$field}' is not mapped";
+                    }
+                }
+            }
+        }
+
+        // Check for empty values in mapped data
+        if (!empty($mappedData)) {
+            $emptyFields = [];
+            foreach ($mappedData[0] as $field => $value) {
+                $allEmpty = true;
+                foreach ($mappedData as $row) {
+                    if (!empty($row[$field])) {
+                        $allEmpty = false;
+                        break;
+                    }
+                }
+                if ($allEmpty) {
+                    $emptyFields[] = $field;
+                }
+            }
+            
+            if (!empty($emptyFields)) {
+                $validation['warnings'][] = 'Fields with all empty values: ' . implode(', ', $emptyFields);
+            }
+        }
+
+        return $validation;
+    }
+
+    /**
      * Import data from CSV file.
      *
      * @param string $filePath Path to CSV file
@@ -610,7 +846,7 @@ trait Exportable
      * @param int $bytes Byte count
      * @return string
      */
-    protected function formatBytes(int $bytes): string
+    protected static function formatBytes(int $bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $unit = 0;
@@ -621,5 +857,74 @@ trait Exportable
         }
         
         return round($bytes, 2) . ' ' . $units[$unit];
+    }
+
+    /**
+     * Validate import file before importing.
+     *
+     * @param string $filePath File path
+     * @param string $format File format
+     * @param array $mapping Column mapping
+     * @return array Validation results
+     */
+    public static function validateImportFile(string $filePath, string $format = 'csv', array $mapping = []): array
+    {
+        $preview = static::previewImport($filePath, $format, $mapping, 100);
+        
+        return [
+            'is_valid' => empty($preview['validation']['errors']),
+            'errors' => $preview['validation']['errors'],
+            'warnings' => $preview['validation']['warnings'],
+            'total_rows' => $preview['statistics']['total_rows'],
+            'file_size' => $preview['file_info']['size'],
+        ];
+    }
+
+    /**
+     * Get import recommendations based on file analysis.
+     *
+     * @param string $filePath File path
+     * @param string $format File format
+     * @return array Recommendations
+     */
+    public static function getImportRecommendations(string $filePath, string $format = 'csv'): array
+    {
+        $fileSize = filesize($filePath);
+        $preview = static::previewImport($filePath, $format, [], 100);
+        $totalRows = $preview['statistics']['total_rows'];
+        
+        $recommendations = [
+            'chunk_size' => 1000,
+            'estimated_time' => '< 1 minute',
+            'memory_usage' => 'Low',
+            'should_use_queue' => false,
+            'tips' => [],
+        ];
+
+        // Adjust based on file size and row count
+        if ($totalRows > 100000) {
+            $recommendations['chunk_size'] = 2000;
+            $recommendations['estimated_time'] = '5-10 minutes';
+            $recommendations['memory_usage'] = 'High';
+            $recommendations['should_use_queue'] = true;
+            $recommendations['tips'][] = 'Consider using queue for background processing';
+            $recommendations['tips'][] = 'Large dataset detected - processing may take several minutes';
+        } elseif ($totalRows > 10000) {
+            $recommendations['chunk_size'] = 1000;
+            $recommendations['estimated_time'] = '1-5 minutes';
+            $recommendations['memory_usage'] = 'Medium';
+            $recommendations['tips'][] = 'Medium-sized import - should complete in a few minutes';
+        } else {
+            $recommendations['chunk_size'] = 500;
+            $recommendations['estimated_time'] = '< 1 minute';
+            $recommendations['memory_usage'] = 'Low';
+            $recommendations['tips'][] = 'Small dataset - import should be quick';
+        }
+
+        if ($fileSize > 10 * 1024 * 1024) { // 10MB
+            $recommendations['tips'][] = 'Large file detected - ensure adequate memory is available';
+        }
+
+        return $recommendations;
     }
 }
