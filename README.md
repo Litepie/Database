@@ -8,16 +8,30 @@ An advanced Laravel database package that provides enhanced Eloquent traits, sco
 
 ## Features
 
-- 🗃️ **Advanced Archivable**: Soft archiving with reasons, user tracking, and advanced queries
-- 🔍 **Powerful Search**: Multiple search strategies including full-text, fuzzy, weighted, and boolean search
-- ⚡ **Intelligent Caching**: Smart caching with tags, invalidation, and warm-up strategies
-- 🔗 **Enhanced Slugs**: Advanced slug generation with multiple strategies and configurations
+### Core Traits (14 Available)
+- 📦 **Versionable**: Track model version history with rollback capability
+- 🏷️ **Metable**: Flexible key-value metadata storage (WordPress-style)
+- 🌍 **Translatable**: Multi-language content support with automatic locale handling
+- 🔍 **Searchable**: Powerful search with multiple strategies (full-text, fuzzy, weighted, boolean)
+- ⚡ **Cacheable**: Smart caching with tags, invalidation, and warm-up strategies
+- 🔗 **Sluggable**: Advanced slug generation with multiple strategies
 - 📄 **Paginatable**: Cursor, seek, window, and cached pagination for large datasets
+- 📊 **Aggregatable**: Statistical analysis and reporting (23 analytics methods)
+- 🗃️ **Archivable**: Soft archiving with reasons and user tracking
+- 📤 **Exportable**: Export data to CSV, Excel, JSON formats
+- 📥 **Importable**: Import and validate data from CSV
+- 🔢 **Sortable**: Manual ordering and drag-drop support
+- 📋 **Batchable**: Efficient bulk operations for large datasets
+- 📏 **Measurable**: Query performance monitoring and optimization
+
+### Additional Features
 - 💰 **Money Handling**: Robust money casting with multi-currency support
 - 📊 **JSON Enhancement**: Advanced JSON casting with schema validation
 - 🔧 **Custom Macros**: Dynamic model macro system for extending Eloquent
-- 📋 **Bulk Operations**: Efficient bulk operations for large datasets
 - 🎯 **Smart Scopes**: Advanced query scopes for complex filtering
+
+### 🤖 AI-Ready Package
+This package is fully optimized for AI-assisted development! Use with GitHub Copilot, Cursor AI, ChatGPT, Claude, and other AI coding tools. See [AI Integration Guide](.ai/README.md) for details.
 
 ## Installation
 
@@ -61,9 +75,150 @@ Optionally, publish the configuration file:
 php artisan vendor:publish --tag=litepie-database-config
 ```
 
+## Quick Start for AI Tools
+
+Ask your AI assistant natural questions like:
+
+```
+"How do I track changes to my Post model?"
+"I need custom product attributes in Laravel"
+"Show me how to add multi-language support"
+"How do I create an analytics dashboard?"
+```
+
+Your AI will reference this package's comprehensive documentation in the `.ai/` directory to provide accurate, working code.
+
+### Common Use Cases
+
+#### CMS / Blog
+```php
+class Post extends Model {
+    use Versionable, Translatable, Sluggable, Searchable, Cacheable;
+    protected array $translatable = ['title', 'content'];
+}
+```
+
+#### E-commerce Product
+```php
+class Product extends Model {
+    use Translatable, Metable, Searchable, Cacheable, Sluggable;
+    protected array $translatable = ['name', 'description'];
+}
+```
+
+#### Analytics Dashboard
+```php
+class Order extends Model {
+    use Aggregatable, Cacheable, Exportable;
+}
+```
+
+#### User Preferences
+```php
+class User extends Model {
+    use Metable, Versionable;
+}
+```
+
+For complete examples and AI integration details, see:
+- 📖 [AI Integration Guide](.ai/README.md)
+- 🚀 [Quick Reference](.ai/quick-reference.md)
+- 💻 [Code Examples](.ai/code-examples.md)
+- 📝 [AI Prompts](.ai/ai-prompts.md)
+
 ## Usage
 
-### 1. Archivable Trait
+### 1. Version Control (Versionable Trait)
+
+Track complete version history with rollback capability.
+
+```php
+use Litepie\Database\Traits\Versionable;
+
+class Post extends Model
+{
+    use Versionable;
+    
+    protected int $maxVersions = 20;
+    protected array $versionableExclude = ['views', 'updated_at'];
+}
+
+// Usage
+$post->createVersion('Major update', auth()->user());
+$post->rollbackToVersion(5);
+$history = $post->getVersionHistory();
+$comparison = $post->compareVersions(1, 5);
+```
+
+See [examples/versionable_example.php](examples/versionable_example.php) for 20 detailed examples.
+
+### 2. Custom Metadata (Metable Trait)
+
+WordPress-style flexible key-value storage.
+
+```php
+use Litepie\Database\Traits\Metable;
+
+class Product extends Model
+{
+    use Metable;
+}
+
+// Usage
+$product->setMeta('featured', true);
+$product->setMeta('warranty_months', 24);
+$featured = Product::whereMeta('featured', true)->get();
+$product->incrementMeta('view_count');
+```
+
+See [examples/metable_example.php](examples/metable_example.php) for 20 detailed examples.
+
+### 3. Multi-Language (Translatable Trait)
+
+Support multiple languages with automatic locale handling.
+
+```php
+use Litepie\Database\Traits\Translatable;
+
+class Post extends Model
+{
+    use Translatable;
+    
+    protected array $translatable = ['title', 'content'];
+}
+
+// Usage
+$post->translate('es', ['title' => 'Título', 'content' => 'Contenido']);
+$post->setLocale('es');
+echo $post->title; // Returns Spanish translation
+$completeness = $post->getTranslationCompleteness('es'); // 100%
+```
+
+See [examples/translatable_example.php](examples/translatable_example.php) for 20 detailed examples.
+
+### 4. Analytics & Reporting (Aggregatable Trait)
+
+23 powerful methods for statistics and reporting.
+
+```php
+use Litepie\Database\Traits\Aggregatable;
+
+class Order extends Model
+{
+    use Aggregatable;
+}
+
+// Usage
+$stats = Order::aggregate(['sum' => 'total', 'avg' => 'total']);
+$trend = Order::trend('created_at', 'month', 'revenue', 'sum');
+$growth = Order::growthRate('total', 'month', 6);
+$yoy = Order::yearOverYear('sales', 'sum');
+$comparison = Order::compareWithPreviousPeriod('total', 'sum', 'month');
+```
+
+See [examples/aggregatable_example.php](examples/aggregatable_example.php) for 31 detailed examples.
+
+### 5. Archivable Trait
 
 The enhanced Archivable trait provides soft archiving functionality with additional features like reason tracking and user auditing.
 
@@ -125,7 +280,7 @@ if ($post->isArchived()) {
 }
 ```
 
-### 2. Advanced Searchable Trait
+### 6. Advanced Searchable Trait
 
 Powerful search capabilities with multiple strategies.
 
@@ -187,7 +342,7 @@ class Article extends Model
 $articles = Article::search('John Doe')->get(); // Searches in author name
 ```
 
-### 3. Intelligent Caching Trait
+### 7. Intelligent Caching Trait
 
 Smart caching with automatic invalidation and warm-up strategies.
 
@@ -254,7 +409,7 @@ Product::warmUpCache([
 ]);
 ```
 
-### 4. Enhanced Sluggable Trait
+### 8. Enhanced Sluggable Trait
 
 Advanced slug generation with multiple strategies and configurations.
 
@@ -326,7 +481,7 @@ $variations = $post->getSlugVariations('slug', 'my-post', 5);
 // Returns: ['my-post', 'my-post-2', 'my-post-3', 'my-post-4', 'my-post-5']
 ```
 
-### 5. Paginatable Trait
+### 9. Paginatable Trait
 
 Advanced pagination methods optimized for large datasets.
 
@@ -447,7 +602,7 @@ Returns:
 - ✅ Better than OFFSET
 - ⚠️ Database-specific (MySQL/PostgreSQL)
 
-### 6. Enhanced JSON and Money Casts
+### 10. Enhanced JSON and Money Casts
 
 #### JSON Cast with Schema Validation
 
@@ -513,7 +668,7 @@ echo $order->total['cents']; // 9999
 echo $order->total['currency']; // USD
 ```
 
-### 7. Model Macros
+### 11. Model Macros
 
 Extend Eloquent models with custom macros.
 
@@ -543,7 +698,7 @@ if (ModelMacro::modelHasMacro(User::class, 'popular')) {
 $stats = ModelMacro::getStatistics();
 ```
 
-### 8. Advanced Query Features
+### 12. Advanced Query Features
 
 #### Filtering and Searching
 

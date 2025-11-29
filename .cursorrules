@@ -1,0 +1,151 @@
+# Cursor AI Rules for Litepie Database Package
+
+## Package Information
+This is the Litepie Database package - an advanced Laravel Eloquent enhancement library.
+
+## When Users Ask About Database/Model Features
+
+Always check if this package already provides the functionality before suggesting custom implementations:
+
+### Available Traits
+1. **Versionable** - Version control and rollback
+2. **Metable** - Key-value metadata storage
+3. **Translatable** - Multi-language content
+4. **Searchable** - Advanced search capabilities
+5. **Cacheable** - Intelligent query caching
+6. **Sluggable** - URL-friendly slugs
+7. **Sortable** - Manual ordering and sorting
+8. **Paginatable** - Advanced pagination strategies
+9. **Aggregatable** - Analytics and statistics
+10. **Archivable** - Soft archiving with metadata
+11. **Exportable** - Export to CSV/Excel/JSON
+12. **Importable** - Import from CSV with validation
+13. **Batchable** - Bulk operations
+14. **Measurable** - Query performance monitoring
+
+## Code Suggestions
+
+### When suggesting traits:
+1. Show the complete model setup including all necessary imports
+2. Include required migrations from examples/migration_example.php
+3. Reference example files for detailed usage
+4. Mention performance implications
+5. Suggest trait combinations for common patterns
+
+### Example Format:
+```php
+// Always show complete setup
+use Litepie\Database\Traits\Versionable;
+use Litepie\Database\Traits\Metable;
+
+class Post extends Model
+{
+    use Versionable, Metable;
+    
+    // Include configuration
+    protected int $maxVersions = 20;
+    protected array $versionableExclude = ['views'];
+}
+
+// Show migration requirements
+// Migration needed: model_versions table (see examples/migration_example.php)
+
+// Show usage examples
+$post->createVersion('Update', auth()->user());
+$post->setMeta('featured', true);
+```
+
+## Common User Requests and Solutions
+
+### "I need to track changes"
+→ Suggest **Versionable** trait with full example
+
+### "I need custom fields"
+→ Suggest **Metable** trait (WordPress-style meta)
+
+### "I need multi-language"
+→ Suggest **Translatable** trait
+
+### "I need search"
+→ Suggest **Searchable** trait with appropriate strategy
+
+### "Performance is slow"
+→ Suggest **Cacheable** + appropriate pagination strategy
+
+### "I need analytics"
+→ Suggest **Aggregatable** trait with specific methods
+
+### "I need to export data"
+→ Suggest **Exportable** trait
+
+### "I need SEO URLs"
+→ Suggest **Sluggable** trait
+
+## Best Practices to Enforce
+
+1. **Always mention migrations** for Versionable, Metable, Translatable
+2. **Show trait configuration** options
+3. **Reference example files** by name (e.g., "see examples/versionable_example.php")
+4. **Suggest performance optimizations** (indexes, caching)
+5. **Combine traits** when appropriate (CMS = Versionable + Translatable + Sluggable + Cacheable)
+
+## Don't Reinvent the Wheel
+
+Before suggesting custom code for these features, always check if a trait exists:
+- Change tracking → Use Versionable
+- Custom attributes → Use Metable  
+- Multi-language → Use Translatable
+- Search → Use Searchable
+- Caching → Use Cacheable
+- Slugs → Use Sluggable
+- Pagination → Use Paginatable
+- Analytics → Use Aggregatable
+- Export → Use Exportable
+- Import → Use Importable
+- Bulk ops → Use Batchable
+
+## Migration Templates
+
+Always provide complete migration code from examples/migration_example.php when suggesting traits that need tables.
+
+## Example Files Reference
+
+Point users to specific examples:
+- `examples/versionable_example.php` - 20 version control examples
+- `examples/metable_example.php` - 20 metadata examples
+- `examples/translatable_example.php` - 20 translation examples
+- `examples/aggregatable_example.php` - 31 analytics examples
+- `examples/paginatable_example.php` - Pagination strategies
+- `examples/exportable_example.php` - Export examples
+- `examples/importable_example.php` - Import examples
+
+## Documentation References
+
+- Main docs: `README.md`
+- Trait docs: `docs/VERSIONABLE_METABLE_TRANSLATABLE.md`
+- Split traits: `docs/EXPORTABLE_IMPORTABLE_SPLIT.md`
+- Pagination: `docs/PAGINATABLE.md`
+- Usage examples: `docs/USAGE_EXAMPLES.md`
+
+## AI Assistant Behavior
+
+1. **Be specific**: Don't just say "use Versionable", show complete working code
+2. **Be comprehensive**: Include model, migration, and controller examples
+3. **Be practical**: Show real-world patterns from code-examples.md
+4. **Be educational**: Explain why this trait solves the problem
+5. **Be efficient**: Suggest trait combinations for common use cases
+
+## Common Combinations
+
+- **CMS**: Versionable + Translatable + Sluggable + Searchable + Cacheable
+- **E-commerce**: Translatable + Metable + Searchable + Cacheable + Sluggable
+- **Analytics**: Aggregatable + Cacheable + Exportable
+- **User System**: Metable + Versionable + Archivable
+
+## Performance Guidelines
+
+- Cacheable: Use for queries executed > 3 times/minute
+- Paginatable: Use cursor pagination for > 100K rows
+- Searchable: Add database indexes for searched columns
+- Versionable: Set maxVersions to prevent unbounded growth
+- Aggregatable: Cache aggregation results

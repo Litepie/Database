@@ -15,7 +15,17 @@
         "searchable",
         "sluggable",
         "sortable",
-        "encryptable"
+        "encryptable",
+        "versionable",
+        "translatable",
+        "metable",
+        "aggregatable",
+        "paginatable",
+        "exportable",
+        "importable",
+        "ai-ready",
+        "ai-assisted",
+        "copilot-friendly"
     ],
     "license": "MIT",
     "authors": [
@@ -64,6 +74,15 @@
             "aliases": {
                 "ModelMacro": "Litepie\\Database\\Facades\\ModelMacro"
             }
+        },
+        "ai-integration": {
+            "enabled": true,
+            "capabilities": ".ai/package-capabilities.yaml",
+            "quick-reference": ".ai/quick-reference.md",
+            "examples": ".ai/code-examples.md",
+            "prompts": ".ai/ai-prompts.md",
+            "documentation": ".ai/README.md",
+            "cursor-rules": ".cursorrules"
         }
     },
     "config": {

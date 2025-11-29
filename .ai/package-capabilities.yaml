@@ -1,0 +1,282 @@
+# Litepie Database Package - AI Assistant Capabilities Guide
+# This file helps AI tools understand what this package can do
+
+package:
+  name: litepie/database
+  type: laravel-package
+  category: database-enhancement
+  description: Advanced Eloquent traits and utilities for Laravel applications
+  minimum_php: "8.2"
+  minimum_laravel: "10.0"
+
+capabilities:
+  traits:
+    - name: Versionable
+      purpose: Track model version history with rollback capability
+      file: src/Traits/Versionable.php
+      example_file: examples/versionable_example.php
+      primary_methods:
+        - createVersion(reason, user, metadata)
+        - rollbackToVersion(versionNumber)
+        - getVersionHistory()
+        - compareVersions(versionA, versionB)
+        - getVersion(versionNumber)
+      use_when:
+        - Need audit trails
+        - Content versioning required
+        - Rollback functionality needed
+        - Compliance tracking
+        - Editorial workflows
+      
+    - name: Metable
+      purpose: Flexible key-value metadata storage like WordPress post_meta
+      file: src/Traits/Metable.php
+      example_file: examples/metable_example.php
+      primary_methods:
+        - setMeta(key, value)
+        - getMeta(key, default)
+        - getAllMeta()
+        - incrementMeta(key)
+        - whereMeta(key, value)
+      use_when:
+        - Need flexible attributes
+        - User preferences storage
+        - Custom product fields
+        - Feature flags
+        - Analytics tracking
+      
+    - name: Translatable
+      purpose: Multi-language content support
+      file: src/Traits/Translatable.php
+      example_file: examples/translatable_example.php
+      primary_methods:
+        - translate(locale, attributes)
+        - getTranslation(attribute, locale)
+        - setLocale(locale)
+        - getAllTranslations(locale)
+        - whereTranslation(attribute, value, locale)
+      use_when:
+        - Multi-language websites
+        - International e-commerce
+        - Localized content
+        - Translation management
+      
+    - name: Searchable
+      purpose: Advanced search with multiple strategies
+      file: src/Traits/Searchable.php
+      example_file: examples/searchable_example.php
+      primary_methods:
+        - search(query)
+        - advancedSearch(query)
+        - fullTextSearch(query)
+        - fuzzySearch(query)
+        - weightedSearch(query)
+      use_when:
+        - Need search functionality
+        - Full-text search required
+        - Fuzzy matching needed
+        - Weighted relevance scoring
+      
+    - name: Cacheable
+      purpose: Intelligent query result caching
+      file: src/Traits/Cacheable.php
+      primary_methods:
+        - cacheFor(minutes)
+        - cacheWithTags(tags, minutes)
+        - cachePaginate(perPage, minutes)
+        - clearModelCache()
+      use_when:
+        - Performance optimization needed
+        - Expensive queries
+        - High traffic endpoints
+        - Reduce database load
+      
+    - name: Sluggable
+      purpose: Automatic URL-friendly slug generation
+      file: src/Traits/Sluggable.php
+      primary_methods:
+        - findBySlug(slug)
+        - regenerateSlugs()
+        - whereSlug(slug)
+      use_when:
+        - SEO-friendly URLs needed
+        - Unique identifiers required
+        - Route model binding
+      
+    - name: Sortable
+      purpose: Advanced sorting and manual ordering
+      file: src/Traits/Sortable.php
+      primary_methods:
+        - sortBy(field, direction)
+        - sortByPosition()
+        - moveToPosition(position)
+        - moveUp() / moveDown()
+      use_when:
+        - Manual ordering needed
+        - Drag-drop reordering
+        - Priority sorting
+      
+    - name: Paginatable
+      purpose: Advanced pagination for large datasets
+      file: src/Traits/Paginatable.php
+      example_file: examples/paginatable_example.php
+      primary_methods:
+        - cursorPaginate(perPage)
+        - fastPaginate(perPage)
+        - seekPaginate(limit, lastId)
+        - optimizedPaginate(perPage)
+        - cachedPaginate(perPage, ttl)
+      use_when:
+        - Large datasets (>100K rows)
+        - Deep pagination needed
+        - Performance critical
+        - Real-time feeds
+      
+    - name: Aggregatable
+      purpose: Statistical analysis and reporting
+      file: src/Traits/Aggregatable.php
+      example_file: examples/aggregatable_example.php
+      primary_methods:
+        - aggregate(aggregations)
+        - trend(dateField, interval)
+        - percentiles(field)
+        - compareWithPreviousPeriod(field, metric, period)
+        - growthRate(field, period, periods)
+        - topN(field, n)
+        - yearOverYear(field, metric)
+      use_when:
+        - Analytics dashboards
+        - Reporting needed
+        - Statistical analysis
+        - Business intelligence
+      
+    - name: Archivable
+      purpose: Soft archiving with metadata
+      file: src/Traits/Archivable.php
+      primary_methods:
+        - archive(reason, user)
+        - unArchive()
+        - onlyArchived()
+        - withArchived()
+      use_when:
+        - Soft delete alternative
+        - Archiving workflow
+        - Reason tracking needed
+      
+    - name: Exportable
+      purpose: Export data to multiple formats
+      file: src/Traits/Exportable.php
+      example_file: examples/exportable_example.php
+      primary_methods:
+        - exportToCsv(columns, filename)
+        - exportToJson(columns, filename)
+        - exportToExcel(columns, filename)
+        - exportStream(format, columns)
+      use_when:
+        - Data export required
+        - Reports generation
+        - Bulk data download
+      
+    - name: Importable
+      purpose: Import and validate data
+      file: src/Traits/Importable.php
+      example_file: examples/importable_example.php
+      primary_methods:
+        - importFromCsv(file, mapping)
+        - previewImport(file, rows)
+        - validateImport(file)
+      use_when:
+        - Bulk data import
+        - CSV processing
+        - Data migration
+      
+    - name: Batchable
+      purpose: Efficient bulk operations
+      file: src/Traits/Batchable.php
+      example_file: examples/batchable_example.php
+      primary_methods:
+        - batch(chunkSize, callback)
+        - batchUpdate(data)
+        - batchInsert(data)
+        - batchDelete(ids)
+      use_when:
+        - Bulk operations needed
+        - Large dataset processing
+        - Performance optimization
+      
+    - name: Measurable
+      purpose: Query performance monitoring
+      file: src/Traits/Measurable.php
+      example_file: examples/measurable_example.php
+      primary_methods:
+        - measure(callback)
+        - getQueryMetrics()
+        - logSlowQueries()
+      use_when:
+        - Performance monitoring
+        - Query optimization
+        - Debugging slow queries
+
+  casts:
+    - name: JsonCast
+      purpose: Enhanced JSON casting with schema validation
+      file: src/Casts/JsonCast.php
+      
+    - name: MoneyCast
+      purpose: Money handling with currency support
+      file: src/Casts/MoneyCast.php
+
+common_patterns:
+  cms:
+    description: Content Management System
+    traits: [Versionable, Translatable, Metable, Sluggable, Searchable, Cacheable]
+    example: |
+      class Post extends Model {
+          use Versionable, Translatable, Metable, Sluggable, Searchable, Cacheable;
+          protected array $translatable = ['title', 'content'];
+      }
+  
+  ecommerce:
+    description: E-commerce Product Management
+    traits: [Translatable, Metable, Searchable, Cacheable, Sluggable, Sortable]
+    example: |
+      class Product extends Model {
+          use Translatable, Metable, Searchable, Cacheable, Sluggable, Sortable;
+          protected array $translatable = ['name', 'description'];
+      }
+  
+  analytics:
+    description: Analytics and Reporting
+    traits: [Aggregatable, Cacheable, Exportable, Measurable]
+    example: |
+      class Order extends Model {
+          use Aggregatable, Cacheable, Exportable, Measurable;
+      }
+  
+  user_management:
+    description: User Preferences and Settings
+    traits: [Metable, Versionable, Archivable]
+    example: |
+      class User extends Model {
+          use Metable, Versionable, Archivable;
+      }
+
+installation:
+  steps:
+    - Run: composer require litepie/database
+    - Publish config: php artisan vendor:publish --tag=litepie-database-config
+    - Run migrations for required traits
+    - Add traits to your models
+
+migrations_needed:
+  versionable: model_versions table
+  metable: model_meta table
+  translatable: model_translations table
+  
+ai_usage_tips:
+  - Always check which traits are needed for the use case
+  - Traits can be combined on the same model
+  - Check example files for implementation patterns
+  - Migration examples available in examples/migration_example.php
+  - Each trait is independent - use only what you need
+  - Performance considerations documented in trait files
