@@ -583,4 +583,487 @@ trait Aggregatable
                 return $query;
         }
     }
+
+    /**
+     * Compare metrics between current and previous period.
+     *
+     * Returns comparison data including current value, previous value,
+     * absolute change, percentage change, and trend direction.
+     *
+     * Example:
+     * ```php
+     * $comparison = Order::compareWithPreviousPeriod('total', 'sum', 'month');
+     * // Returns:
+     * // [
+     * //     'current' => 15000,
+     * //     'previous' => 12000,
+     * //     'change' => 3000,
+     * //     'change_percent' => 25.0,
+     * //     'trend' => 'up'
+     * // ]
+     * ```
+     *
+     * @param string $field Field to analyze
+     * @param string $metric Metric type (sum, avg, count, min, max)
+     * @param string $period Period (day, week, month, year)
+     * @param string $dateField Date field to use for filtering
+     * @return array Comparison data
+     */
+    public static function compareWithPreviousPeriod(string $field, string $metric = 'sum', string $period = 'month', string $dateField = 'created_at'): array
+    {
+        // Get current period value
+        $currentQuery = static::query()->currentPeriod($dateField, $period);
+        $current = static::applyMetric($currentQuery, $field, $metric);
+
+        // Get previous period value
+        $previousQuery = static::query()->previousPeriod($dateField, $period);
+        $previous = static::applyMetric($previousQuery, $field, $metric);
+
+        // Calculate changes
+        $change = $current - $previous;
+        $changePercent = $previous > 0 ? round(($change / $previous) * 100, 2) : 0;
+        $trend = $change > 0 ? 'up' : ($change < 0 ? 'down' : 'stable');
+
+        return [
+            'current' => round($current, 2),
+            'previous' => round($previous, 2),
+            'change' => round($change, 2),
+            'change_percent' => $changePercent,
+            'trend' => $trend,
+            'period' => $period,
+        ];
+    }
+
+    /**
+     * Calculate growth rate over a period.
+     *
+     * Example:
+     * ```php
+     * $growth = Order::growthRate('total', 'month', 6);
+     * // Returns: ['period' => 'month', 'periods' => 6, 'growth_rate' => 15.5, 'data' => [...]]
+     * ```
+     *
+     * @param string $field Field to calculate growth for
+     * @param string $period Period interval (day, week, month, year)
+     * @param int $periods Number of periods to analyze
+     * @param string $dateField Date field to use
+     * @return array Growth rate data
+     */
+    public static function growthRate(string $field, string $period = 'month', int $periods = 6, string $dateField = 'created_at'): array
+    {
+        $data = [];
+        $values = [];
+
+        for ($i = $periods - 1; $i >= 0; $i--) {
+            $start = static::getPeriodStart($period, $i);
+            $end = static::getPeriodEnd($period, $i);
+
+            $value = static::query()
+                ->whereBetween($dateField, [$start, $end])
+                ->sum($field);
+
+            $data[] = [
+                'period' => $start->format('Y-m-d'),
+                'value' => round($value, 2),
+            ];
+
+            $values[] = $value;
+        }
+
+        // Calculate average growth rate
+        $growthRates = [];
+        for ($i = 1; $i < count($values); $i++) {
+            if ($values[$i - 1] > 0) {
+                $growthRates[] = (($values[$i] - $values[$i - 1]) / $values[$i - 1]) * 100;
+            }
+        }
+
+        $avgGrowthRate = count($growthRates) > 0 ? round(array_sum($growthRates) / count($growthRates), 2) : 0;
+
+        return [
+            'period' => $period,
+            'periods' => $periods,
+            'growth_rate' => $avgGrowthRate,
+            'data' => $data,
+        ];
+    }
+
+    /**
+     * Get top N records by a field.
+     *
+     * Example:
+     * ```php
+     * $topProducts = Product::topN('sales', 10, 'DESC');
+     * // Returns top 10 products by sales
+     * ```
+     *
+     * @param string $field Field to rank by
+     * @param int $n Number of records to return
+     * @param string $direction Sort direction (ASC or DESC)
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function topN(string $field, int $n = 10, string $direction = 'DESC'): Collection
+    {
+        return static::query()
+            ->orderBy($field, $direction)
+            ->limit($n)
+            ->get();
+    }
+
+    /**
+     * Get bottom N records by a field.
+     *
+     * Example:
+     * ```php
+     * $bottomProducts = Product::bottomN('sales', 10);
+     * // Returns bottom 10 products by sales
+     * ```
+     *
+     * @param string $field Field to rank by
+     * @param int $n Number of records to return
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function bottomN(string $field, int $n = 10): Collection
+    {
+        return static::topN($field, $n, 'ASC');
+    }
+
+    /**
+     * Rank records by a field with optional partitioning.
+     *
+     * Example:
+     * ```php
+     * $ranked = Product::rankBy('sales', 'category_id');
+     * // Returns products ranked by sales within each category
+     * ```
+     *
+     * @param string $field Field to rank by
+     * @param string|null $partitionBy Field to partition by
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function rankBy(string $field, ?string $partitionBy = null): Collection
+    {
+        $table = (new static())->getTable();
+        
+        if ($partitionBy) {
+            $sql = "ROW_NUMBER() OVER (PARTITION BY {$partitionBy} ORDER BY {$field} DESC) as rank";
+        } else {
+            $sql = "ROW_NUMBER() OVER (ORDER BY {$field} DESC) as rank";
+        }
+
+        return static::query()
+            ->selectRaw("{$table}.*, {$sql}")
+            ->get();
+    }
+
+    /**
+     * Calculate running total for a field.
+     *
+     * Example:
+     * ```php
+     * $runningTotal = Order::runningTotal('total', 'created_at');
+     * // Returns collection with original data plus running_total field
+     * ```
+     *
+     * @param string $field Field to calculate running total for
+     * @param string $orderBy Field to order by
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function runningTotal(string $field, string $orderBy = 'created_at'): Collection
+    {
+        $data = static::query()->orderBy($orderBy)->get();
+        $runningTotal = 0;
+
+        return $data->map(function ($item) use ($field, &$runningTotal) {
+            $runningTotal += $item->$field;
+            $item->running_total = round($runningTotal, 2);
+            return $item;
+        });
+    }
+
+    /**
+     * Calculate cumulative average for a field.
+     *
+     * Example:
+     * ```php
+     * $cumulativeAvg = Order::cumulativeAverage('total', 'created_at');
+     * // Returns collection with original data plus cumulative_average field
+     * ```
+     *
+     * @param string $field Field to calculate cumulative average for
+     * @param string $orderBy Field to order by
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function cumulativeAverage(string $field, string $orderBy = 'created_at'): Collection
+    {
+        $data = static::query()->orderBy($orderBy)->get();
+        $sum = 0;
+        $count = 0;
+
+        return $data->map(function ($item) use ($field, &$sum, &$count) {
+            $sum += $item->$field;
+            $count++;
+            $item->cumulative_average = round($sum / $count, 2);
+            return $item;
+        });
+    }
+
+    /**
+     * Get trend data with gap filling for missing periods.
+     *
+     * Ensures all time periods are represented even if no data exists.
+     *
+     * Example:
+     * ```php
+     * $trend = Order::trendWithGapFilling('created_at', 'day', 0, 30);
+     * // Returns 30 days of data, filling gaps with 0
+     * ```
+     *
+     * @param string $dateField Date field to analyze
+     * @param string $interval Interval (day, week, month, year)
+     * @param mixed $fillValue Value to use for missing periods
+     * @param int $periods Number of periods to include
+     * @param string|null $valueField Field to aggregate
+     * @param string $aggregation Aggregation type
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function trendWithGapFilling(
+        string $dateField,
+        string $interval = 'day',
+        $fillValue = 0,
+        int $periods = 30,
+        ?string $valueField = null,
+        string $aggregation = 'count'
+    ): Collection {
+        // Generate all expected periods
+        $expectedPeriods = static::generatePeriods($interval, $periods);
+        
+        // Get actual data
+        $actualData = static::trend($dateField, $interval, $valueField, $aggregation);
+        $actualDataKeyed = $actualData->keyBy('period');
+
+        // Fill gaps
+        $results = collect();
+        foreach ($expectedPeriods as $period) {
+            if (isset($actualDataKeyed[$period])) {
+                $results->push($actualDataKeyed[$period]);
+            } else {
+                $results->push([
+                    'period' => $period,
+                    'value' => $fillValue,
+                ]);
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Aggregate by multiple dimensions.
+     *
+     * Example:
+     * ```php
+     * $stats = Order::aggregateBy(
+     *     ['customer_id', 'product_id'],
+     *     ['count' => '*', 'sum' => 'total', 'avg' => 'total']
+     * );
+     * ```
+     *
+     * @param array $groupFields Fields to group by
+     * @param array $metrics Aggregation metrics
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function aggregateBy(array $groupFields, array $metrics): Collection
+    {
+        $query = static::query()->groupBy($groupFields)->select($groupFields);
+
+        foreach ($metrics as $operation => $field) {
+            switch (strtolower($operation)) {
+                case 'count':
+                    $query->selectRaw("COUNT({$field}) as count");
+                    break;
+                case 'sum':
+                    $query->selectRaw("SUM({$field}) as sum");
+                    break;
+                case 'avg':
+                    $query->selectRaw("AVG({$field}) as avg");
+                    break;
+                case 'min':
+                    $query->selectRaw("MIN({$field}) as min");
+                    break;
+                case 'max':
+                    $query->selectRaw("MAX({$field}) as max");
+                    break;
+            }
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Calculate percentage share/distribution by group.
+     *
+     * Example:
+     * ```php
+     * $shares = Product::percentageShare('category_id', 'sales');
+     * // Returns: [
+     * //     ['category_id' => 1, 'value' => 5000, 'percentage' => 35.5, 'rank' => 1],
+     * //     ['category_id' => 2, 'value' => 3000, 'percentage' => 21.3, 'rank' => 2],
+     * //     ...
+     * // ]
+     * ```
+     *
+     * @param string $groupBy Field to group by
+     * @param string $field Field to calculate share for
+     * @param string $aggregation Aggregation type (sum, count, avg)
+     * @return array Share data with percentages and ranking
+     */
+    public static function percentageShare(string $groupBy, string $field, string $aggregation = 'sum'): array
+    {
+        $data = static::groupByWithAggregations($groupBy, [$aggregation => $field]);
+        $total = $data->sum($aggregation);
+
+        $results = [];
+        $rank = 1;
+
+        foreach ($data->sortByDesc($aggregation) as $item) {
+            $value = $item->$aggregation;
+            $percentage = $total > 0 ? round(($value / $total) * 100, 2) : 0;
+
+            $results[] = [
+                $groupBy => $item->$groupBy,
+                'value' => round($value, 2),
+                'percentage' => $percentage,
+                'rank' => $rank++,
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Get year-over-year comparison.
+     *
+     * Example:
+     * ```php
+     * $yoy = Order::yearOverYear('total', 'sum', 'created_at');
+     * ```
+     *
+     * @param string $field Field to compare
+     * @param string $metric Metric type (sum, avg, count)
+     * @param string $dateField Date field
+     * @return array Year-over-year comparison
+     */
+    public static function yearOverYear(string $field, string $metric = 'sum', string $dateField = 'created_at'): array
+    {
+        $currentYear = Carbon::now()->year;
+        $previousYear = $currentYear - 1;
+
+        $current = static::applyMetric(
+            static::query()->whereYear($dateField, $currentYear),
+            $field,
+            $metric
+        );
+
+        $previous = static::applyMetric(
+            static::query()->whereYear($dateField, $previousYear),
+            $field,
+            $metric
+        );
+
+        $change = $current - $previous;
+        $changePercent = $previous > 0 ? round(($change / $previous) * 100, 2) : 0;
+
+        return [
+            'current_year' => $currentYear,
+            'current_value' => round($current, 2),
+            'previous_year' => $previousYear,
+            'previous_value' => round($previous, 2),
+            'change' => round($change, 2),
+            'change_percent' => $changePercent,
+            'trend' => $change > 0 ? 'up' : ($change < 0 ? 'down' : 'stable'),
+        ];
+    }
+
+    /**
+     * Apply a metric to a query.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $field
+     * @param string $metric
+     * @return float
+     */
+    protected static function applyMetric($query, string $field, string $metric): float
+    {
+        return match (strtolower($metric)) {
+            'sum' => $query->sum($field) ?? 0,
+            'avg', 'average' => $query->avg($field) ?? 0,
+            'count' => $query->count($field),
+            'min' => $query->min($field) ?? 0,
+            'max' => $query->max($field) ?? 0,
+            default => 0,
+        };
+    }
+
+    /**
+     * Get period start date.
+     *
+     * @param string $period
+     * @param int $offset
+     * @return Carbon
+     */
+    protected static function getPeriodStart(string $period, int $offset): Carbon
+    {
+        return match ($period) {
+            'day' => Carbon::now()->subDays($offset)->startOfDay(),
+            'week' => Carbon::now()->subWeeks($offset)->startOfWeek(),
+            'month' => Carbon::now()->subMonths($offset)->startOfMonth(),
+            'year' => Carbon::now()->subYears($offset)->startOfYear(),
+            default => Carbon::now()->subDays($offset)->startOfDay(),
+        };
+    }
+
+    /**
+     * Get period end date.
+     *
+     * @param string $period
+     * @param int $offset
+     * @return Carbon
+     */
+    protected static function getPeriodEnd(string $period, int $offset): Carbon
+    {
+        return match ($period) {
+            'day' => Carbon::now()->subDays($offset)->endOfDay(),
+            'week' => Carbon::now()->subWeeks($offset)->endOfWeek(),
+            'month' => Carbon::now()->subMonths($offset)->endOfMonth(),
+            'year' => Carbon::now()->subYears($offset)->endOfYear(),
+            default => Carbon::now()->subDays($offset)->endOfDay(),
+        };
+    }
+
+    /**
+     * Generate array of period strings.
+     *
+     * @param string $interval
+     * @param int $periods
+     * @return array
+     */
+    protected static function generatePeriods(string $interval, int $periods): array
+    {
+        $result = [];
+        $format = match ($interval) {
+            'day' => 'Y-m-d',
+            'week' => 'Y-W',
+            'month' => 'Y-m',
+            'year' => 'Y',
+            default => 'Y-m-d',
+        };
+
+        for ($i = $periods - 1; $i >= 0; $i--) {
+            $date = static::getPeriodStart($interval, $i);
+            $result[] = $date->format($format);
+        }
+
+        return $result;
+    }
 }

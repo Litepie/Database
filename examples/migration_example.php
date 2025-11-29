@@ -92,6 +92,55 @@ return new class extends Migration
             $table->auditColumns();
             $table->rememberToken();
         });
+
+        // Model Versions table for Versionable trait
+        Schema::create('model_versions', function (Blueprint $table) {
+            $table->id();
+            $table->morphs('versionable');
+            $table->integer('version_number');
+            $table->json('data');
+            $table->string('reason')->nullable();
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->string('user_type')->nullable();
+            $table->json('metadata')->nullable();
+            $table->string('hash')->nullable();
+            $table->timestamps();
+            
+            $table->index(['versionable_type', 'versionable_id']);
+            $table->index('version_number');
+            $table->index('user_id');
+        });
+
+        // Model Meta table for Metable trait
+        Schema::create('model_meta', function (Blueprint $table) {
+            $table->id();
+            $table->morphs('metable');
+            $table->string('key');
+            $table->text('value')->nullable();
+            $table->string('type')->default('string');
+            $table->timestamps();
+            
+            $table->unique(['metable_type', 'metable_id', 'key']);
+            $table->index(['metable_type', 'metable_id']);
+            $table->index('key');
+        });
+
+        // Model Translations table for Translatable trait
+        Schema::create('model_translations', function (Blueprint $table) {
+            $table->id();
+            $table->morphs('translatable');
+            $table->string('locale', 10);
+            $table->string('attribute');
+            $table->text('value')->nullable();
+            $table->timestamps();
+            
+            $table->unique(
+                ['translatable_type', 'translatable_id', 'locale', 'attribute'],
+                'translations_unique'
+            );
+            $table->index(['translatable_type', 'translatable_id']);
+            $table->index('locale');
+        });
     }
 
     /**
@@ -99,6 +148,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('model_translations');
+        Schema::dropIfExists('model_meta');
+        Schema::dropIfExists('model_versions');
         Schema::dropIfExists('users');
         Schema::dropIfExists('articles');
         Schema::dropIfExists('products');

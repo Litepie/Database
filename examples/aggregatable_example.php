@@ -642,6 +642,354 @@ class AggregatableExamples
         }
         */
     }
+
+    /**
+     * Example 21: Period-over-Period Comparison
+     * Compare current period with previous period.
+     */
+    public function example21(): void
+    {
+        // Compare this month vs last month
+        $comparison = Order::compareWithPreviousPeriod('total', 'sum', 'month');
+        
+        /*
+        Returns:
+        [
+            'current' => 15000.00,
+            'previous' => 12000.00,
+            'change' => 3000.00,
+            'change_percent' => 25.0,
+            'trend' => 'up',
+            'period' => 'month'
+        ]
+        */
+        
+        // Compare today vs yesterday
+        $dailyComparison = Order::compareWithPreviousPeriod('total', 'sum', 'day');
+        
+        // Compare average order value
+        $avgComparison = Order::compareWithPreviousPeriod('total', 'avg', 'month');
+        
+        // Compare order count
+        $countComparison = Order::compareWithPreviousPeriod('*', 'count', 'week');
+    }
+
+    /**
+     * Example 22: Growth Rate Analysis
+     * Calculate growth rate over multiple periods.
+     */
+    public function example22(): void
+    {
+        // Calculate 6-month growth rate
+        $growth = Order::growthRate('total', 'month', 6);
+        
+        /*
+        Returns:
+        [
+            'period' => 'month',
+            'periods' => 6,
+            'growth_rate' => 15.5,  // Average monthly growth
+            'data' => [
+                ['period' => '2024-06-01', 'value' => 10000],
+                ['period' => '2024-07-01', 'value' => 11500],
+                ['period' => '2024-08-01', 'value' => 13000],
+                ...
+            ]
+        ]
+        */
+        
+        // Daily growth for last 30 days
+        $dailyGrowth = Product::growthRate('sales', 'day', 30);
+        
+        // Yearly growth for last 5 years
+        $yearlyGrowth = Order::growthRate('total', 'year', 5);
+    }
+
+    /**
+     * Example 23: Top and Bottom N Records
+     * Get top/bottom performers.
+     */
+    public function example23(): void
+    {
+        // Top 10 products by sales
+        $topProducts = Product::topN('sales', 10);
+        
+        // Top 20 customers by total orders
+        $topCustomers = Order::topN('total', 20);
+        
+        // Bottom 5 performing products
+        $bottomProducts = Product::bottomN('sales', 5);
+        
+        // Custom ordering (ascending)
+        $cheapest = Product::topN('price', 10, 'ASC');
+    }
+
+    /**
+     * Example 24: Ranking with Partitioning
+     * Rank records overall or within groups.
+     */
+    public function example24(): void
+    {
+        // Rank all products by sales
+        $rankedProducts = Product::rankBy('sales');
+        
+        /*
+        Returns each product with a 'rank' field:
+        [
+            ['id' => 5, 'name' => 'Widget', 'sales' => 1000, 'rank' => 1],
+            ['id' => 2, 'name' => 'Gadget', 'sales' => 800, 'rank' => 2],
+            ...
+        ]
+        */
+        
+        // Rank products within each category
+        $rankedByCategory = Product::rankBy('sales', 'category_id');
+        
+        /*
+        Returns products ranked within their category:
+        [
+            ['id' => 5, 'category_id' => 1, 'sales' => 1000, 'rank' => 1],
+            ['id' => 8, 'category_id' => 1, 'sales' => 800, 'rank' => 2],
+            ['id' => 3, 'category_id' => 2, 'sales' => 950, 'rank' => 1],
+            ['id' => 7, 'category_id' => 2, 'sales' => 700, 'rank' => 2],
+            ...
+        ]
+        */
+    }
+
+    /**
+     * Example 25: Running Totals
+     * Calculate cumulative sums over time.
+     */
+    public function example25(): void
+    {
+        // Running total of order amounts
+        $runningTotal = Order::runningTotal('total', 'created_at');
+        
+        /*
+        Returns:
+        [
+            ['id' => 1, 'total' => 100, 'created_at' => '...', 'running_total' => 100],
+            ['id' => 2, 'total' => 150, 'created_at' => '...', 'running_total' => 250],
+            ['id' => 3, 'total' => 75, 'created_at' => '...', 'running_total' => 325],
+            ...
+        ]
+        */
+        
+        // Running total for specific period
+        $monthlyRunningTotal = Order::query()
+            ->whereMonth('created_at', now()->month)
+            ->get()
+            ->pipe(function ($orders) {
+                $runningTotal = 0;
+                return $orders->map(function ($order) use (&$runningTotal) {
+                    $runningTotal += $order->total;
+                    $order->running_total = $runningTotal;
+                    return $order;
+                });
+            });
+    }
+
+    /**
+     * Example 26: Cumulative Average
+     * Calculate running average over time.
+     */
+    public function example26(): void
+    {
+        // Cumulative average of order amounts
+        $cumulativeAvg = Order::cumulativeAverage('total', 'created_at');
+        
+        /*
+        Returns:
+        [
+            ['id' => 1, 'total' => 100, 'cumulative_average' => 100],
+            ['id' => 2, 'total' => 150, 'cumulative_average' => 125],
+            ['id' => 3, 'total' => 75, 'cumulative_average' => 108.33],
+            ...
+        ]
+        */
+        
+        // Track how average changes over time
+        $productAvg = Product::cumulativeAverage('price', 'created_at');
+    }
+
+    /**
+     * Example 27: Trend with Gap Filling
+     * Get trend data with missing periods filled.
+     */
+    public function example27(): void
+    {
+        // Last 30 days of orders, filling gaps with 0
+        $trend = Order::trendWithGapFilling('created_at', 'day', 0, 30);
+        
+        /*
+        Returns 30 records, one for each day, even if no orders:
+        [
+            ['period' => '2024-11-01', 'value' => 5],
+            ['period' => '2024-11-02', 'value' => 0],  // No orders, filled
+            ['period' => '2024-11-03', 'value' => 8],
+            ...
+        ]
+        */
+        
+        // Last 12 months with revenue
+        $monthlyRevenue = Order::trendWithGapFilling(
+            'created_at',
+            'month',
+            0,
+            12,
+            'total',
+            'sum'
+        );
+        
+        // Weekly sales with null for missing weeks
+        $weeklySales = Product::trendWithGapFilling(
+            'created_at',
+            'week',
+            null,
+            52,
+            'sales',
+            'sum'
+        );
+    }
+
+    /**
+     * Example 28: Multi-dimensional Aggregation
+     * Aggregate by multiple fields at once.
+     */
+    public function example28(): void
+    {
+        // Sales by customer and product
+        $stats = Order::aggregateBy(
+            ['customer_id', 'product_id'],
+            ['count' => '*', 'sum' => 'total', 'avg' => 'total']
+        );
+        
+        /*
+        Returns:
+        [
+            [
+                'customer_id' => 1,
+                'product_id' => 5,
+                'count' => 10,
+                'sum' => 1000,
+                'avg' => 100
+            ],
+            ...
+        ]
+        */
+        
+        // Sales by region and category
+        $regionalStats = Order::aggregateBy(
+            ['region', 'category_id'],
+            ['count' => '*', 'sum' => 'total']
+        );
+    }
+
+    /**
+     * Example 29: Percentage Share Analysis
+     * Calculate distribution and market share.
+     */
+    public function example29(): void
+    {
+        // Sales share by category
+        $categoryShare = Product::percentageShare('category_id', 'sales');
+        
+        /*
+        Returns:
+        [
+            ['category_id' => 1, 'value' => 5000, 'percentage' => 35.5, 'rank' => 1],
+            ['category_id' => 3, 'value' => 3500, 'percentage' => 24.8, 'rank' => 2],
+            ['category_id' => 2, 'value' => 3000, 'percentage' => 21.3, 'rank' => 3],
+            ['category_id' => 4, 'value' => 2600, 'percentage' => 18.4, 'rank' => 4],
+        ]
+        */
+        
+        // Revenue share by customer
+        $customerShare = Order::percentageShare('customer_id', 'total', 'sum');
+        
+        // Product count share by supplier
+        $supplierShare = Product::percentageShare('supplier_id', '*', 'count');
+    }
+
+    /**
+     * Example 30: Year-over-Year Comparison
+     * Compare current year with previous year.
+     */
+    public function example30(): void
+    {
+        // Revenue YoY comparison
+        $yoy = Order::yearOverYear('total', 'sum');
+        
+        /*
+        Returns:
+        [
+            'current_year' => 2024,
+            'current_value' => 150000.00,
+            'previous_year' => 2023,
+            'previous_value' => 120000.00,
+            'change' => 30000.00,
+            'change_percent' => 25.0,
+            'trend' => 'up'
+        ]
+        */
+        
+        // Average order value YoY
+        $avgYoY = Order::yearOverYear('total', 'avg');
+        
+        // Customer count YoY
+        $customerYoY = Order::yearOverYear('customer_id', 'count');
+    }
+
+    /**
+     * Example 31: Complete Dashboard Analytics
+     * Comprehensive analytics for a dashboard.
+     */
+    public function example31(): void
+    {
+        // Current period metrics
+        $current = Order::currentPeriod('created_at', 'month')
+            ->aggregate(['count' => '*', 'sum' => 'total', 'avg' => 'total']);
+        
+        // Comparison with previous period
+        $comparison = Order::compareWithPreviousPeriod('total', 'sum', 'month');
+        
+        // Growth rate trend
+        $growth = Order::growthRate('total', 'month', 6);
+        
+        // Daily trend for current month
+        $dailyTrend = Order::query()
+            ->currentPeriod('created_at', 'month')
+            ->get()
+            ->pipe(function ($orders) {
+                return Order::trendWithGapFilling('created_at', 'day', 0, 30);
+            });
+        
+        // Top performers
+        $topProducts = Product::topN('sales', 10);
+        $topCustomers = Order::aggregateBy(['customer_id'], ['sum' => 'total'])
+            ->sortByDesc('sum')
+            ->take(10);
+        
+        // Distribution analysis
+        $categoryShare = Product::percentageShare('category_id', 'sales');
+        
+        // Year-over-year
+        $yoy = Order::yearOverYear('total', 'sum');
+        
+        $dashboardData = [
+            'current' => $current,
+            'comparison' => $comparison,
+            'growth' => $growth,
+            'daily_trend' => $dailyTrend,
+            'top_products' => $topProducts,
+            'top_customers' => $topCustomers,
+            'category_distribution' => $categoryShare,
+            'yoy_comparison' => $yoy,
+        ];
+        
+        // Example usage: response()->json($dashboardData);
+    }
 }
 
 /**
@@ -677,6 +1025,7 @@ class Product extends Model
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\Product;
 use Carbon\Carbon;
 
 class AnalyticsController extends Controller
@@ -690,9 +1039,17 @@ class AnalyticsController extends Controller
             'month' => Order::currentPeriod('created_at', 'month')
                 ->aggregate(['count' => '*', 'sum' => 'total']),
             
-            'trend' => Order::trend('created_at', 'day', 'total', 'sum'),
+            'comparison' => Order::compareWithPreviousPeriod('total', 'sum', 'month'),
+            
+            'growth' => Order::growthRate('total', 'month', 6),
+            
+            'trend' => Order::trendWithGapFilling('created_at', 'day', 0, 30),
             
             'stats' => Order::statisticalSummary('total'),
+            
+            'top_products' => Product::topN('sales', 10),
+            
+            'yoy' => Order::yearOverYear('total', 'sum'),
         ];
         
         return view('dashboard', compact('analytics'));
@@ -701,13 +1058,23 @@ class AnalyticsController extends Controller
     public function revenue()
     {
         return response()->json([
-            'daily' => Order::trend('created_at', 'day', 'total', 'sum'),
+            'daily' => Order::trendWithGapFilling('created_at', 'day', 0, 30, 'total', 'sum'),
             'monthly' => Order::trend('created_at', 'month', 'total', 'sum'),
-            'by_category' => Order::groupByWithAggregations('category_id', [
-                'sum' => 'total',
-                'avg' => 'total',
-            ]),
+            'by_category' => Product::percentageShare('category_id', 'sales'),
+            'growth_rate' => Order::growthRate('total', 'month', 12),
+        ]);
+    }
+    
+    public function performance()
+    {
+        return response()->json([
+            'top_performers' => Product::topN('sales', 20),
+            'bottom_performers' => Product::bottomN('sales', 10),
+            'ranked_by_category' => Product::rankBy('sales', 'category_id'),
+            'running_totals' => Order::runningTotal('total', 'created_at'),
         ]);
     }
 }
 */
+
+
